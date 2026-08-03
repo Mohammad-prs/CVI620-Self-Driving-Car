@@ -100,3 +100,76 @@ The project is primarily built with:
 **CVI620 – Computer Vision**
 
 Final Project: End-to-End Self-Driving Car
+
+## Installation and Setup
+
+### Prerequisites
+
+Before running the project, make sure the following are installed:
+
+* Python 3
+* pip
+* Git
+* A Python virtual environment is recommended
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Mohammad-prs/CVI620-Self-Driving-Car.git
+cd CVI620-Self-Driving-Car
+```
+
+### 2. Create a Virtual Environment
+
+On macOS/Linux:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+On Windows:
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+### 3. Install Dependencies
+
+Install the project dependencies using:
+
+```bash
+pip install -r requirements.txt
+```
+
+The project uses several Python libraries for image processing, numerical operations, model development, and simulator interaction.
+
+Main dependencies include:
+
+* NumPy – numerical operations and image arrays
+* OpenCV – image loading, preprocessing, and transformations
+* TensorFlow/Keras – CNN model creation, training, and inference
+* Pandas – driving-log and dataset processing
+* Matplotlib – data visualization and steering-distribution analysis
+* PyAutoGUI – interaction with the simulator during inference
+
+### Dataset Setup
+
+The project uses driving images together with CSV driving logs containing image paths and steering values.
+
+Training and testing data should be stored in their corresponding project data directories. Each CSV entry associates an image with its steering-angle target.
+
+Before training, verify that the image paths referenced by the driving logs point to the correct image directories.
+
+### Model Output
+
+During training, the project stores generated model artifacts inside the configured models directory.
+
+The best model is saved as:
+
+```text
+best_model.keras
+```
+
+Training history is also saved for later analysis.
