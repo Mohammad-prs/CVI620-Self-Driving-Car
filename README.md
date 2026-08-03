@@ -275,3 +275,115 @@ models/training_history.json
 ```
 
 The saved Keras model is used later by the inference pipeline, while the training history can be used to analyze model performance.
+
+## Project Structure
+
+The project separates configuration, model definition, training, inference, utilities, dataset analysis, and driving data.
+
+```text
+CVI620-Self-Driving-Car/
+│
+├── README.md
+├── requirements.txt
+│
+├── src/
+│   ├── config.py
+│   ├── model.py
+│   ├── train.py
+│   ├── inference.py
+│   └── utils.py
+│
+├── traindata/
+│   ├── driving_log.csv
+│   └── IMG/
+│
+├── testdata/
+│   ├── driving_log.csv
+│   └── IMG/
+│
+└── histogram.ipynb
+```
+
+### Main Source Files
+
+#### `config.py`
+
+Contains shared configuration values used by the project, including model input dimensions, training parameters, paths, and other project settings.
+
+#### `model.py`
+
+Defines the NVIDIA-style convolutional neural network used to predict steering values from road images.
+
+#### `train.py`
+
+Contains the model-training workflow, including model creation, compilation, callbacks, checkpointing, and training-history handling.
+
+#### `inference.py`
+
+Loads a saved trained model and performs steering-angle prediction.
+
+#### `utils.py`
+
+Contains reusable helper functionality used by the project.
+
+#### `histogram.ipynb`
+
+Provides dataset analysis and experimentation, including steering-angle distribution analysis, image augmentation, preprocessing, and batch-generation work.
+
+## Running the Project
+
+### Model Training
+
+The training workflow is located in:
+
+```text
+src/train.py
+```
+
+Before running training, make sure that the dataset paths and generators are correctly connected to the training and validation data.
+
+The training script is responsible for:
+
+* Building the CNN
+* Compiling the model
+* Configuring callbacks
+* Training the model
+* Monitoring validation performance
+* Saving the best model
+* Saving training history
+
+### Inference
+
+Inference is handled through:
+
+```text
+src/inference.py
+```
+
+The inference workflow loads the saved Keras model and uses it to generate steering predictions.
+
+Conceptually, the inference process is:
+
+```text
+Road Image
+    ↓
+Preprocessing
+    ↓
+Trained CNN
+    ↓
+Predicted Steering Angle
+```
+
+### Dataset Analysis
+
+The histogram notebook can be used to inspect the distribution of steering values in the collected training and testing data.
+
+Analyzing this distribution is useful because an autonomous-driving dataset may contain many straight-driving examples compared with left and right turns.
+
+The augmentation experiments can then be used to introduce additional variation into the training dataset.
+
+## Reproducibility
+
+For consistent experiments, the project configuration defines a random seed.
+
+Keeping model parameters, paths, and training settings in the configuration module also makes experiments easier to reproduce and modify.
