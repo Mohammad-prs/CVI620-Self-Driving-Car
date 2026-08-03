@@ -3,7 +3,7 @@ from typing import Dict, List
 
 import matplotlib.pyplot as plt
 
-from config import GRAPHS_DIR, LOSS_GRAPH_PATH, MODELS_DIR
+from src.config import GRAPHS_DIR, LOSS_GRAPH_PATH, MODELS_DIR
 
 
 def create_output_directories() -> None:

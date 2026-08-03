@@ -9,9 +9,11 @@ models/*.h5
 
 dataset/
 
-
 .vscode/
 .idea/
+
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
 
 .DS_Store
 Thumbs.db
