@@ -173,3 +173,105 @@ best_model.keras
 ```
 
 Training history is also saved for later analysis.
+
+## Model Architecture
+
+The project uses a CNN inspired by NVIDIA's end-to-end learning architecture for autonomous driving.
+
+The model accepts a preprocessed road image with the input shape:
+
+```text
+66 × 200 × 3
+```
+
+The CNN uses a sequence of convolutional layers to extract visual features from the road image.
+
+The convolutional feature extractor is followed by fully connected layers that gradually reduce the learned representation to a single output.
+
+The final output represents the predicted steering angle.
+
+### Model Pipeline
+
+```text
+Camera Image
+     ↓
+Image Preprocessing
+     ↓
+66 × 200 × 3 Image
+     ↓
+Convolutional Layers
+     ↓
+Feature Extraction
+     ↓
+Fully Connected Layers
+     ↓
+Steering Angle
+```
+
+## Image Preprocessing
+
+Before an image is passed to the neural network, preprocessing is used to produce a consistent model input.
+
+The preprocessing workflow includes:
+
+1. Cropping the image to focus primarily on the useful road region.
+2. Converting the image to the YUV colour space.
+3. Applying Gaussian blur.
+4. Resizing the image to `200 × 66`.
+5. Normalizing pixel values.
+
+The final processed image has the shape:
+
+```text
+(66, 200, 3)
+```
+
+## Data Augmentation
+
+The project also experiments with data augmentation to increase variation in the training dataset.
+
+Augmentation operations include:
+
+### Horizontal Flip
+
+Images may be flipped horizontally. When an image is flipped, the steering angle is multiplied by `-1` so that the label remains consistent with the transformed driving direction.
+
+### Brightness Adjustment
+
+Random brightness changes simulate different lighting conditions.
+
+### Random Crop and Zoom
+
+Random cropping followed by resizing introduces variation in camera framing and road position.
+
+### Rotation
+
+Small random rotations introduce additional visual variation into the training data.
+
+## Training Configuration
+
+The model is designed as a regression model because the output is a continuous steering value.
+
+Training uses:
+
+* Adam optimizer
+* Mean Squared Error (MSE) loss
+* Mean Absolute Error (MAE) metric
+* Validation monitoring
+* Early stopping
+* Model checkpointing
+
+Early stopping helps prevent unnecessary training once validation performance stops improving.
+
+Model checkpointing preserves the model with the best validation loss.
+
+## Training Outputs
+
+The training process can generate:
+
+```text
+models/best_model.keras
+models/training_history.json
+```
+
+The saved Keras model is used later by the inference pipeline, while the training history can be used to analyze model performance.
