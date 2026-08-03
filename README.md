@@ -387,3 +387,103 @@ The augmentation experiments can then be used to introduce additional variation 
 For consistent experiments, the project configuration defines a random seed.
 
 Keeping model parameters, paths, and training settings in the configuration module also makes experiments easier to reproduce and modify.
+
+## Final Demonstration
+
+The final demonstration presents the complete workflow of the self-driving car project, from the source code and dataset to steering-angle prediction.
+
+### Demo Flow
+
+The demonstration should cover the following components:
+
+1. **Project Repository**
+
+   Show the GitHub repository and briefly explain the organization of the project.
+
+2. **Driving Dataset**
+
+   Show the training images and `driving_log.csv` data.
+
+   Explain that each driving image is associated with a steering value used as the target during supervised learning.
+
+3. **Dataset Analysis**
+
+   Open the histogram notebook and show the steering-angle distribution.
+
+   Briefly explain why analyzing the distribution is important before training.
+
+4. **Image Preprocessing**
+
+   Demonstrate or explain the preprocessing pipeline:
+
+   ```text
+   Original Image
+         ↓
+   Crop Road Region
+         ↓
+   Convert to YUV
+         ↓
+   Gaussian Blur
+         ↓
+   Resize to 200 × 66
+         ↓
+   Normalize
+   ```
+
+5. **Data Augmentation**
+
+   Explain the augmentation techniques used to increase training-data diversity:
+
+   * Horizontal flipping
+   * Brightness changes
+   * Cropping/zooming
+   * Rotation
+
+6. **CNN Architecture**
+
+   Open `model.py` and explain that the NVIDIA-style CNN extracts visual road features and predicts a continuous steering value.
+
+7. **Training Pipeline**
+
+   Open `train.py` and show:
+
+   * Model creation
+   * Adam optimizer
+   * MSE loss
+   * Validation monitoring
+   * Early stopping
+   * Model checkpointing
+
+8. **Inference**
+
+   Open `inference.py` and demonstrate how the trained model is loaded and used to produce steering predictions.
+
+9. **Final Result**
+
+   Show the final available autonomous-driving or steering-prediction result and explain how camera input is transformed into a steering command.
+
+## Demo Summary
+
+The project demonstrates an end-to-end computer-vision pipeline where driving images are processed by a convolutional neural network to estimate vehicle steering.
+
+The main stages are:
+
+```text
+Data Collection
+      ↓
+Data Analysis
+      ↓
+Preprocessing & Augmentation
+      ↓
+CNN Training
+      ↓
+Model Validation
+      ↓
+Model Saving
+      ↓
+Inference
+      ↓
+Steering Prediction
+```
+
+This approach demonstrates how deep learning can learn driving behaviour directly from visual road information instead of relying entirely on manually designed lane-detection and steering rules.
