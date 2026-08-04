@@ -21,8 +21,7 @@ from src.config import (
 
 def load_driving_log(csv_path: Path, images_dir: Path) -> pd.DataFrame:
     """
-    Load a driving log and replace computer-specific image paths
-    with valid local paths from this project.
+    Load a driving log and rebuild image paths locally.
     """
 
     data = pd.read_csv(csv_path, sep=";")
@@ -37,8 +36,6 @@ def load_driving_log(csv_path: Path, images_dir: Path) -> pd.DataFrame:
 
     data = data[["Imgs", "Steering"]].copy()
 
-    # The CSV contains absolute Windows paths from Joseph's computer.
-    # Keep only the filename and rebuild the path using this project.
     data["image_path"] = data["Imgs"].apply(
         lambda path: images_dir / Path(str(path).replace("\\", "/")).name
     )
@@ -60,8 +57,7 @@ def load_driving_log(csv_path: Path, images_dir: Path) -> pd.DataFrame:
         example = missing_images["image_path"].iloc[0]
 
         raise FileNotFoundError(
-            f"{len(missing_images)} images referenced by the CSV "
-            f"could not be found. Example: {example}"
+            f"{len(missing_images)} missing images. Example: {example}"
         )
 
     return data
@@ -70,60 +66,65 @@ def load_driving_log(csv_path: Path, images_dir: Path) -> pd.DataFrame:
 def balance_training_data(
     data: pd.DataFrame,
     near_zero_threshold: float = 0.05,
-    max_near_zero_samples: int = 1500,
 ) -> pd.DataFrame:
     """
-    Reduce the excessive number of nearly straight-driving samples.
-
-    All turning samples are preserved. Only near-zero steering samples
-    are randomly reduced.
+    Oversample turning examples instead of deleting straight images.
     """
 
     if data.empty:
-        raise ValueError("The training dataset is empty.")
+        raise ValueError("Training dataset is empty.")
 
-    near_zero_data = data[
+    straight = data[
         data["Steering"].abs() < near_zero_threshold
     ]
 
-    turning_data = data[
+    turning = data[
         data["Steering"].abs() >= near_zero_threshold
     ]
 
-    if len(near_zero_data) > max_near_zero_samples:
-        near_zero_data = near_zero_data.sample(
-            n=max_near_zero_samples,
-            random_state=RANDOM_SEED,
-        )
+    medium_turns = turning[
+        turning["Steering"].abs() < 0.40
+    ]
 
-    balanced_data = pd.concat(
-        [near_zero_data, turning_data],
+    strong_turns = turning[
+        turning["Steering"].abs() >= 0.40
+    ]
+
+    balanced = pd.concat(
+        [
+            straight,
+
+            turning,
+
+            # duplicate every turning image
+            turning,
+
+            # duplicate medium turns again
+            medium_turns,
+
+            # duplicate sharp turns 3 extra times
+            strong_turns,
+            strong_turns,
+            strong_turns,
+        ],
         ignore_index=True,
     )
 
-    balanced_data = balanced_data.sample(
+    balanced = balanced.sample(
         frac=1.0,
         random_state=RANDOM_SEED,
     ).reset_index(drop=True)
 
-    return balanced_data
+    return balanced
 
 
 def preprocess_image(image: np.ndarray) -> np.ndarray:
     """
-    Prepare one BGR simulator image for the Nvidia CNN.
-
-    Steps:
-    1. Crop the road region.
-    2. Convert BGR to YUV.
-    3. Apply Gaussian blur.
-    4. Resize to 200 x 66.
-
-    Normalization is handled by model.py.
+    Prepare one image for the Nvidia model.
     """
 
     if image is None:
-        raise ValueError("The image could not be loaded.")
+        raise ValueError("Image could not be loaded.")
 
     height, width = image.shape[:2]
 
@@ -133,7 +134,7 @@ def preprocess_image(image: np.ndarray) -> np.ndarray:
     ]
 
     if cropped.size == 0:
-        raise ValueError("Image crop produced an empty image.")
+        raise ValueError("Crop produced an empty image.")
 
     yuv = cv2.cvtColor(
         cropped,
@@ -159,16 +160,11 @@ def augment_image(
     image: np.ndarray,
     steering_angle: float,
 ) -> Tuple[np.ndarray, float]:
-    """
-    Apply random augmentation to a training image.
-    """
 
-    # Horizontal flip.
     if random.random() < 0.5:
         image = cv2.flip(image, 1)
         steering_angle *= -1.0
 
-    # Random brightness.
     if random.random() < 0.5:
         hsv = cv2.cvtColor(
             image,
@@ -188,6 +184,42 @@ def augment_image(
             cv2.COLOR_HSV2BGR,
         )
 
+    if random.random() < 0.5:
+        shift = random.randint(-50, 50)
+
+        matrix = np.float32(
+            [
+                [1, 0, shift],
+                [0, 1, 0],
+            ]
+        )
+
+        image = cv2.warpAffine(
+            image,
+            matrix,
+            (image.shape[1], image.shape[0]),
+        )
+
+        steering_angle += shift * 0.002
+
+    if random.random() < 0.3:
+        zoom = random.uniform(1.0, 1.2)
+
+        h, w = image.shape[:2]
+
+        nh = int(h / zoom)
+        nw = int(w / zoom)
+
+        y = random.randint(0, h - nh)
+        x = random.randint(0, w - nw)
+
+        image = image[y:y + nh, x:x + nw]
+
+        image = cv2.resize(
+            image,
+            (w, h),
+        )
+
     return image, steering_angle
 
 
@@ -196,105 +228,96 @@ def batch_generator(
     batch_size: int = BATCH_SIZE,
     training: bool = False,
 ) -> Iterator[Tuple[np.ndarray, np.ndarray]]:
-    """
-    Continuously generate image and steering-angle batches.
-    """
-
-    if data.empty:
-        raise ValueError("The dataset is empty.")
 
     while True:
+
         indices = np.arange(len(data))
 
         if training:
             np.random.shuffle(indices)
 
         for start in range(0, len(indices), batch_size):
+
             batch_indices = indices[start:start + batch_size]
 
             images = []
-            steering_angles = []
+            steering = []
 
-            for index in batch_indices:
-                row = data.iloc[index]
+            for idx in batch_indices:
+
+                row = data.iloc[idx]
 
                 image = cv2.imread(
                     str(row["image_path"])
                 )
 
-                if image is None:
-                    raise FileNotFoundError(
-                        f"Could not read image: {row['image_path']}"
-                    )
-
-                steering_angle = float(
+                angle = float(
                     row["Steering"]
                 )
 
                 if training:
-                    image, steering_angle = augment_image(
+                    image, angle = augment_image(
                         image,
-                        steering_angle,
+                        angle,
                     )
 
                 image = preprocess_image(image)
 
                 images.append(image)
-                steering_angles.append(steering_angle)
+                steering.append(angle)
 
             yield (
                 np.asarray(images, dtype=np.float32),
-                np.asarray(steering_angles, dtype=np.float32),
+                np.asarray(steering, dtype=np.float32),
             )
 
 
-def load_datasets() -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Load the balanced training dataset and unchanged test dataset.
-    """
+def load_datasets():
 
-    train_data = load_driving_log(
+    train1 = load_driving_log(
         TRAIN_LOG_PATH,
         TRAIN_IMAGES_DIR,
     )
 
-    train_data = balance_training_data(
-        train_data,
-    )
-
-    test_data = load_driving_log(
+    train2 = load_driving_log(
         TEST_LOG_PATH,
         TEST_IMAGES_DIR,
     )
 
-    return train_data, test_data
+    combined = pd.concat(
+        [train1, train2],
+        ignore_index=True,
+    )
+
+    combined = combined.sample(
+        frac=1.0,
+        random_state=RANDOM_SEED,
+    ).reset_index(drop=True)
+
+    split = int(len(combined) * 0.9)
+
+    train_data = combined.iloc[:split].reset_index(drop=True)
+    validation_data = combined.iloc[split:].reset_index(drop=True)
+
+    train_data = balance_training_data(
+        train_data
+    )
+
+    return train_data, validation_data
 
 
 if __name__ == "__main__":
+
     random.seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
 
-    train_data, test_data = load_datasets()
+    train_data, validation_data = load_datasets()
 
     steering = train_data["Steering"]
 
-    print("Balanced training rows:", len(train_data))
-    print("Test rows:", len(test_data))
-    print("Near-zero training rows:", (steering.abs() < 0.05).sum())
-    print("Turning training rows:", (steering.abs() >= 0.05).sum())
-    print("Negative steering rows:", (steering < 0).sum())
-    print("Positive steering rows:", (steering > 0).sum())
-    print("First training image:", train_data["image_path"].iloc[0])
-
-    generator = batch_generator(
-        train_data,
-        batch_size=4,
-        training=True,
-    )
-
-    image_batch, steering_batch = next(generator)
-
-    print("Image batch shape:", image_batch.shape)
-    print("Steering batch shape:", steering_batch.shape)
-    print("Image dtype:", image_batch.dtype)
-    print("Image value range:", image_batch.min(), image_batch.max())
+    print("Training rows:", len(train_data))
+    print("Validation rows:", len(validation_data))
+    print("Near zero:", (steering.abs() < 0.05).sum())
+    print("Turning:", (steering.abs() >= 0.05).sum())
+    print("Negative:", (steering < 0).sum())
+    print("Positive:", (steering > 0).sum())

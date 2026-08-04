@@ -71,10 +71,10 @@ def build_nvidia_model() -> Sequential:
             Flatten(name="flatten"),
 
             Dense(100, activation="elu", name="dense_1"),
-            Dropout(0.5, name="dropout_1"),
+            Dropout(0.2, name="dropout_1"),
 
             Dense(50, activation="elu", name="dense_2"),
-            Dropout(0.5, name="dropout_2"),
+            Dropout(0.2, name="dropout_2"),
 
             Dense(10, activation="elu", name="dense_3"),
 
